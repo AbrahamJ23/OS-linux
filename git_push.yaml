@@ -1,0 +1,25 @@
+---
+- name: Push Files to Remote Git Repository
+  hosts: localhost
+  become: yes  # Afhankelijk van de toegangsrechten op de remote server
+
+  tasks:
+    - name: Clone Git Repository (if not already cloned)
+      git:
+        repo: "https://github.com/AbrahamJ23/OS-linux.git"
+        dest: "/home/abraham/.git"  # Dit is het lokale pad op de remote server naar de .git-map
+
+    - name: Commit Changes
+      git:
+        repo: "/home/abraham/.git"
+        dest: "/home/abraham"
+        user: "abrahamj23"
+        email: "your@email.com"
+        commit_msg: "Committing changes from Ansible playbook"
+
+    - name: Push Changes to Remote
+      git:
+        repo: "/home/abraham/.git"
+        dest: "origin"
+        remote: "master"  # De naam van de remote repository en branch waar je naar wilt pushen
+        force: yes

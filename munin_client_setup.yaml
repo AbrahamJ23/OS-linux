@@ -1,0 +1,29 @@
+- name: Munin Client Setup
+  hosts: myhosts
+  become: yes
+  vars:
+    munin_server_ip: "192.168.0.121"  
+
+  tasks:
+    # Installeer Munin-node op de client
+    - name: Install Munin-node
+      apt:
+        name: munin-node
+        state: present
+
+    # Configureer Munin-node om te rapporteren aan de Munin-server
+    - name: Configure Munin-node
+      lineinfile:
+        path: /etc/munin/munin-node.conf
+        line: "{{ item }}"
+      with_items:
+        - "allow ^{{ munin_server_ip }}$"
+        - "host_name {{ inventory_hostname }}"
+      notify: restart munin-node
+
+  handlers:
+    # Herstart Munin-node na configuratiewijzigingen
+    - name: restart munin-node
+      service:
+        name: munin-node
+        state: restarted

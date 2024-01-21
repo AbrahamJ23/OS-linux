@@ -1,0 +1,39 @@
+- name: My first play
+  hosts: myhosts, localhost
+  become: yes
+  tasks:
+
+    # ping hosts voor verbinding check
+    - name: ping my hosts
+      ansible.builtin.ping:
+
+    # update hosts met apt
+    - name: Update client
+      apt:
+        update_cache: yes
+
+    # upgrade ansible met pip
+    - name: Upgrade ansible with pip
+      command: pip install --upgrade ansible
+
+    # installeer en update syslog-ng
+    - name: Install syslog-ng
+      apt:
+        name: syslog-ng
+        state: present
+
+    - name: Update syslog-ng
+      apt:
+        name: syslog-ng
+        state: latest
+
+    # installeer en update Munin
+    - name: Install Munin
+      apt:
+        name: munin
+        state: present
+
+    - name: Update Munin
+      apt:
+        name: munin
+        state: latest

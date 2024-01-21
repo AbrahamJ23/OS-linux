@@ -1,0 +1,122 @@
+---
+- name: WordPress Setup
+  hosts: localhost
+  become: yes
+
+  vars:
+    mysql_root_password: "password"
+    wordpress_db_name: "wordpress_db"
+    wordpress_db_user: "abraham"
+    wordpress_db_password: "password"
+
+  tasks:
+    # Installeer MySQL-server
+    - name: Install MySQL Server
+      apt:
+        name: mysql-server
+        state: present
+      become: yes
+
+    - name: Install debconf requirements
+      package:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - debconf
+        - debconf-utils
+
+    # Configureer MySQL root-wachtwoord
+    - name: Set MySQL root Password
+      debconf:
+        name: mysql-server
+        question: "{{ item.question }}"
+        vtype: "{{ item.vtype }}"
+        value: "{{ mysql_root_password }}"
+      with_items:
+        - { question: "mysql-server/root_password", vtype: "password" }
+        - { question: "mysql-server/root_password_again", vtype: "password" }
+      notify: restart mysql
+
+    # Installeer MySQL Python-module
+    - name: Install MySQL Python Module
+      apt:
+        name: python3-mysqldb
+        state: present
+
+    # Creëer WordPress database
+    - name: Create WordPress Database
+      mysql_db:
+        name: "{{ wordpress_db_name }}"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    # Creëer WordPress database-gebruiker
+    - name: Create WordPress Database User
+      mysql_user:
+        name: "{{ wordpress_db_user }}"
+        password: "{{ wordpress_db_password }}"
+        priv: "{{ wordpress_db_name }}.*:ALL"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    # Download en installeer WordPress
+    - name: Download and Install WordPress
+      get_url:
+        url: "https://wordpress.org/latest.tar.gz"
+        dest: "/tmp/wordpress.tar.gz"
+
+    - name: Extract WordPress
+      ansible.builtin.unarchive:
+        src: "/tmp/wordpress.tar.gz"
+        dest: "/var/www/html/"
+        remote_src: yes
+        owner: www-data
+        group: www-data
+        mode: "0755"
+
+    # Configureer WordPress-configuratiebestand
+    - name: Configure WordPress
+      template:
+        src: "/var/www/html/wordpress/wp-config-sample.php"
+        dest: "/var/www/html/wordpress/wp-config.php"
+      notify: restart apache2
+
+    # Vervang de database-naam in wp-config.php
+    - name: Replace database name in wp-config.php
+      replace:
+        path: "/var/www/html/wordpress/wp-config.php"
+        regexp: "define\\('DB_NAME', 'database_name_here'\\);"
+        replace: "define('DB_NAME', '{{ wordpress_db_name }}');"
+      notify: restart apache2
+
+    # Vervang de database-gebruikersnaam in wp-config.php
+    - name: Replace database user in wp-config.php
+      replace:
+        path: "/var/www/html/wordpress/wp-config.php"
+        regexp: "define\\('DB_USER', 'database_user_here'\\);"
+        replace: "define('DB_USER', '{{ wordpress_db_user }}');"
+      notify: restart apache2
+
+# Vervang het database-wachtwoord in wp-config.php
+    - name: Replace database password in wp-config.php
+      replace:
+        path: "/var/www/html/wordpress/wp-config.php"
+        regexp: "define\\('DB_PASSWORD', 'database_password_here'\\);"
+        replace: "define('DB_PASSWORD', '{{ wordpress_db_password }}');"
+      notify: restart apache2
+
+
+  handlers:
+    # Herstart MySQL-service
+    - name: restart mysql
+      service:
+        name: mysql
+        state: restarted
+
+    # Herstart Apache-service
+    - name: restart apache2
+      service:
+        name: apache2
+        state: restarted

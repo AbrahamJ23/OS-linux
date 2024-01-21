@@ -1,0 +1,54 @@
+---
+- name: Security Hardening
+  hosts: all  
+  become: yes
+
+  tasks:
+    # Schakel password-based SSH-authenticatie uit
+    - name: Disable password-based SSH authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+      notify: restart sshd
+
+    # Schakel ongebruikte services uit
+    - name: Disable unused services
+      service:
+        name: "{{ item }}"
+        enabled: no
+        state: stopped
+      with_items:
+        - nginx.service
+      notify: restart sshd
+
+#apache security versterken
+# Schakel server tokens uit
+    - name: Disable server tokens
+      lineinfile:
+        path: /etc/apache2/conf-available/security.conf
+        regexp: '^ServerTokens'
+        line: 'ServerTokens Prod'
+      notify: restart apache2.service
+
+# Schakel server signature uit
+    - name: Disable server signature
+      lineinfile:
+        path: /etc/apache2/conf-available/security.conf
+        regexp: '^ServerSignature'
+        line: 'ServerSignature Off'
+      notify: restart apache2
+
+    - name: Disable directory listing
+      lineinfile:
+        path: /etc/apache2/conf-available/security.conf
+        regexp: '^Options'
+        line: 'Options -Indexes'
+      notify: restart apache2.service
+
+  handlers:
+    # Herstart SSH-service na configuratiewijzigingen
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted
